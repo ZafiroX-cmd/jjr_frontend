@@ -1,7 +1,14 @@
 import axios from 'axios';
 
+function resolveApiUrl(): string {
+  const runtime = typeof window !== 'undefined' ? window.__APP_CONFIG__?.apiUrl?.trim() : '';
+  if (runtime) return runtime;
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  return 'http://localhost:5192/api';
+}
+
 const axiosClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5192/api',
+  baseURL: resolveApiUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
