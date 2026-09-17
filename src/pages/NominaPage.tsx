@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import {
-  AlertTriangle,
-  ArrowRight,
   CheckCircle2,
   ChevronRight,
   ClipboardList,
