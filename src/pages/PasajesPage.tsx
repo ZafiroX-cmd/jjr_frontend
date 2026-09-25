@@ -1193,6 +1193,15 @@ export default function PasajesPage({
                     ))}
                   </div>
 
+                  {notice && (
+                    <p
+                      role="status"
+                      className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"
+                    >
+                      {notice}
+                    </p>
+                  )}
+
                   {inspectedSeat && (
                     <Inspection
                       seat={inspectedSeat}
