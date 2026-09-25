@@ -11,7 +11,7 @@ import type { LucideIcon } from "lucide-react";
 
 export type ModuleId =
   | "inicio" | "viajes" | "pasajes" | "encomiendas" | "flota" | "conductores"
-  | "socios" | "clientes" | "comprobantes" | "nomina" | "tesoreria"
+  | "socios" | "clientes" | "comprobantes" | "nomina" | "usuarios" | "tesoreria"
   | "liquidaciones" | "egresos" | "reportes" | "predicciones" | "configuracion";
 
 export interface NavigationItem {
@@ -21,7 +21,7 @@ export interface NavigationItem {
   href: string;
 }
 
-/** Ajusta estas rutas o proporciona la prop routes para usar las de tu proyecto. */
+/** Configuración de navegación del panel con categorías */
 export const DASHBOARD_NAVIGATION: { category: string; items: NavigationItem[] }[] = [
   { category: "General", items: [
     { id: "inicio", label: "Inicio", icon: LayoutDashboard, href: "/dashboard" },
@@ -42,6 +42,7 @@ export const DASHBOARD_NAVIGATION: { category: string; items: NavigationItem[] }
   ] },
   { category: "Gestión humana", items: [
     { id: "nomina", label: "Contratos & nómina", icon: ClipboardList, href: "/nomina" },
+    { id: "usuarios", label: "Usuarios & Recepcionistas", icon: Users, href: "/usuarios" },
   ] },
   { category: "Finanzas", items: [
     { id: "tesoreria", label: "Tesorería", icon: Wallet, href: "/tesoreria" },
@@ -63,7 +64,6 @@ export interface ActivityEvent {
   type: "viaje" | "encomienda" | "pasaje" | "mantenimiento";
   title: string;
   description: string;
-  /** ISO 8601 con zona horaria, p. ej. 2026-09-09T08:15:00-05:00. */
   occurredAt: string;
   status: string;
   href?: string;
@@ -80,11 +80,9 @@ export interface DashboardNotification {
 export interface DashboardSearchResult { id: string; title: string; subtitle?: string; href: string }
 export interface DashboardLayoutProps {
   user?: DashboardUser;
-  /** Sin data se muestra una demostración explícita; no se simulan datos en vivo. */
   data?: DashboardData;
   notifications?: DashboardNotification[];
   activeModule?: ModuleId;
-  /** Solo controla visibilidad; los permisos se deben validar en el backend. */
   allowedModules?: ModuleId[];
   routes?: Partial<Record<ModuleId, string>>;
   logoSrc?: string;
@@ -93,14 +91,10 @@ export interface DashboardLayoutProps {
   activityHref?: string;
   securityHref?: string;
   loginHref?: string;
-  /** Integra React Router con (href) => navigate(href). Sin callback usa enlaces. */
   onNavigate?: (href: string) => void;
-  /** Invalida aquí sesión remota/contexto. Después se limpian token y user locales. */
   onLogout?: () => void | Promise<void>;
   onReadNotification?: (id: string) => void;
-  /** Proveedor real para buscar pasajes, guías y clientes. Debe respetar signal. */
   onSearch?: (query: string, signal: AbortSignal) => Promise<DashboardSearchResult[]>;
-  /** Para reutilizar el sidebar/header alrededor de las pantallas de otros módulos. */
   children?: ReactNode;
 }
 
@@ -114,18 +108,21 @@ const DEMO_DATA: DashboardData = {
     { id: "demo-4", type: "mantenimiento", title: "Mantenimiento programado", description: "Unidad JJR-008 · Revisión preventiva", occurredAt: "2026-09-09T14:30:00-05:00", status: "Pendiente" },
   ],
 };
+
 const ACTIVITY_STYLE = {
   viaje: { icon: Bus, color: "bg-blue-50 text-[#075BC6]", badge: "bg-blue-50 text-blue-800" },
   encomienda: { icon: Package, color: "bg-amber-50 text-amber-700", badge: "bg-emerald-50 text-emerald-800" },
   pasaje: { icon: Ticket, color: "bg-emerald-50 text-emerald-700", badge: "bg-emerald-50 text-emerald-800" },
   mantenimiento: { icon: Wrench, color: "bg-violet-50 text-violet-700", badge: "bg-amber-50 text-amber-800" },
 };
+
 const QUICK_CARDS = [
   { id: "viajes", label: "Viajes", caption: "Salidas programadas", icon: Bus, color: "bg-blue-50 text-[#075BC6]" },
   { id: "pasajes", label: "Pasajes", caption: "Ventas y reservas", icon: Ticket, color: "bg-amber-50 text-amber-700" },
   { id: "encomiendas", label: "Encomiendas", caption: "Guías y seguimiento", icon: Package, color: "bg-emerald-50 text-emerald-700" },
   { id: "flota", label: "Flota", caption: "Unidades registradas", icon: Bus, color: "bg-violet-50 text-violet-700" },
 ] as const;
+
 const css = `
   @keyframes jjr-dashboard-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes jjr-dashboard-badge { 0%,100% { box-shadow: 0 0 0 0 rgba(245,176,0,.4); } 65% { box-shadow: 0 0 0 5px rgba(245,176,0,0); } }
@@ -135,15 +132,18 @@ const css = `
   .jjr-dashboard dialog::backdrop { background: rgba(3,20,38,.65); backdrop-filter: blur(3px); }
   @media (prefers-reduced-motion: reduce) { .jjr-dashboard *, .jjr-dashboard *::before, .jjr-dashboard *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 `;
+
 const focus = "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#00A3E0]";
 const number = (n: number) => new Intl.NumberFormat("es-PE").format(Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0);
 const count = (n: number) => Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "Fecha no disponible" : new Intl.DateTimeFormat("es-PE", {
     timeZone: "America/Lima", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
   }).format(date);
 }
+
 function getStoredUser(): DashboardUser {
   try {
     const value: unknown = JSON.parse(localStorage.getItem("user") || "null");
@@ -154,10 +154,11 @@ function getStoredUser(): DashboardUser {
   } catch { /* El padre puede proporcionar user sin usar almacenamiento local. */ }
   return { nombreCompleto: "Usuario JJR", rol: "Colaborador" };
 }
+
 function safeHref(value: string): string {
-  // Los módulos de esta plataforma son rutas internas.
   return value.startsWith("/") && !value.startsWith("//") && !/[\\\u0000-\u0020\u007f]/.test(value) ? value : "/dashboard";
 }
+
 function Avatar({ user }: { user: DashboardUser }) {
   const [failed, setFailed] = useState(false);
   const initials = user.nombreCompleto.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase() || "JJ";
@@ -165,6 +166,7 @@ function Avatar({ user }: { user: DashboardUser }) {
     {user.avatarUrl && !failed ? <img src={user.avatarUrl} alt="" onError={() => setFailed(true)} className="size-full object-cover" /> : <span aria-hidden="true">{initials}</span>}
   </span>;
 }
+
 function FleetDonut({ fleet }: { fleet: DashboardData["fleet"] }) {
   const id = useId();
   const items = [
@@ -233,7 +235,28 @@ export default function DashboardLayout({
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
-  const permitted = (id: ModuleId) => !allowedModules || allowedModules.includes(id);
+
+  // Lógica de Permisos según el Rol
+  const permitted = (id: ModuleId) => {
+    if (allowedModules) return allowedModules.includes(id);
+
+    // Módulos permitidos estrictamente para Recepcionistas
+    if (user.rol === "Recepcionista") {
+      const recepcionistaPermitidos: ModuleId[] = [
+        "viajes",
+        "pasajes",
+        "encomiendas",
+        "clientes",
+        "reportes",
+        "predicciones",
+      ];
+      return recepcionistaPermitidos.includes(id);
+    }
+
+    // Administrador, Gerente y otros roles mantienen acceso total
+    return true;
+  };
+
   const moduleHref = (id: ModuleId) => safeHref(routes?.[id] ?? DASHBOARD_NAVIGATION.flatMap(group => group.items).find(item => item.id === id)!.href);
   const unread = notifications.filter(item => !item.read && !readIds.has(item.id)).length;
 
@@ -269,7 +292,6 @@ export default function DashboardLayout({
     return () => { document.body.style.overflow = previous; };
   }, [drawerOpen]);
 
-  // Búsqueda cancelable: una respuesta antigua no reemplaza los resultados nuevos.
   useEffect(() => {
     const controller = new AbortController();
     const text = query.trim();
@@ -280,7 +302,7 @@ export default function DashboardLayout({
       try {
         const matches = onSearch ? await onSearch(text, controller.signal) : DASHBOARD_NAVIGATION
           .flatMap(group => group.items)
-          .filter(item => (!allowedModules || allowedModules.includes(item.id)) && item.label.toLocaleLowerCase("es").includes(text.toLocaleLowerCase("es")))
+          .filter(item => permitted(item.id) && item.label.toLocaleLowerCase("es").includes(text.toLocaleLowerCase("es")))
           .map(item => ({ id: item.id, title: item.label, subtitle: "Módulo del sistema", href: routes?.[item.id] ?? item.href }));
         if (!controller.signal.aborted) setResults(matches.slice(0, 8));
       } catch {
@@ -288,7 +310,7 @@ export default function DashboardLayout({
       } finally { if (!controller.signal.aborted) setSearching(false); }
     }, 250);
     return () => { controller.abort(); window.clearTimeout(timer); };
-  }, [query, onSearch, allowedModules, routes]);
+  }, [query, onSearch, allowedModules, routes, user.rol]);
 
   function closePanels() {
     drawerRef.current?.close(); setSearchOpen(false);
@@ -305,6 +327,7 @@ export default function DashboardLayout({
       else window.location.replace(safeHref(loginHref));
     } catch { setLogoutError("No se pudo cerrar la sesión. Inténtalo nuevamente."); setLoggingOut(false); }
   }
+
   function renderSidebar(mobile: boolean) {
     return <div className="flex h-full min-h-0 flex-col bg-[#062443] text-white">
       <div className="relative flex h-[118px] shrink-0 items-center justify-center border-b border-white/10 px-7">
@@ -343,7 +366,7 @@ export default function DashboardLayout({
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-[244px] lg:block">{renderSidebar(false)}</aside>
     <dialog ref={drawerRef} aria-label="Navegación principal" onClose={() => setDrawerOpen(false)} onClick={event => { if (event.target === event.currentTarget) event.currentTarget.close(); }} className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-[min(86vw,300px)] max-w-none border-0 bg-[#062443] p-0 text-white shadow-2xl">{renderSidebar(true)}</dialog>
 
-    <div className="min-w-0 lg:pl-[244px]">
+    <div className="min-[#102D50] lg:pl-[244px]">
       <header className="relative z-30 flex min-h-[72px] items-center gap-3 border-b border-slate-200/70 bg-white px-4 sm:px-6 xl:px-8">
         <button type="button" aria-label="Abrir menú principal" aria-haspopup="dialog" aria-expanded={drawerOpen} onClick={() => { drawerRef.current?.showModal(); setDrawerOpen(true); }} className={`${focus} flex size-11 shrink-0 items-center justify-center rounded-xl hover:bg-slate-100 lg:hidden`}><Menu size={22} /></button>
         <div ref={searchRef} className="relative min-w-0 flex-1 sm:max-w-xl">
@@ -379,7 +402,6 @@ export default function DashboardLayout({
 
       <main id={`${uid}-main`} tabIndex={-1} className="outline-none">
         {children ?? <>
-          {/* El banner adjunto YA contiene slogan e iconos. object-cover recorta sus márgenes blancos sin duplicar el texto. */}
           <section aria-labelledby={`${uid}-hero`} className="jjr-panel relative isolate overflow-hidden bg-[#062443] text-white lg:aspect-[5.35/1]">
             <h1 id={`${uid}-hero`} className="sr-only">Más que transporte, conectamos destinos</h1>
             {!bannerFailed && <img src={bannerSrc} alt="Flota JJR: bus, camioneta y furgón en una carretera de montaña" onError={() => setBannerFailed(true)} fetchPriority="high" className="absolute inset-0 -z-10 hidden size-full object-cover object-center lg:block" />}

@@ -9,8 +9,19 @@ import SociosPage from "./pages/SociosPage";
 import NominaPage from "./pages/NominaPage";
 import ClientesPage from "./pages/ClientesPage";
 import ViajesPage from "./pages/ViajesPage";
-import PasajesPage from "./pages/PasajesPage"; // <--- 1. IMPORTAR PASAJESPAGE
+import PasajesPage from "./pages/PasajesPage";
+import UsuariosPage from "./pages/UsuariosPage";
 import axiosClient from "./api/axiosClient";
+
+// Módulos permitidos estrictamente para el Recepcionista
+const MODULOS_RECEPCIONISTA: ModuleId[] = [
+  "viajes",
+  "pasajes",
+  "encomiendas",
+  "clientes",
+  "reportes",
+  "predicciones",
+];
 
 export default function App() {
   const [session, setSession] = useState<{
@@ -33,6 +44,11 @@ export default function App() {
             nombreCompleto: parsedUser.nombreCompleto,
             rol: parsedUser.rol,
           });
+
+          // Si el usuario guardado es Recepcionista, forzar su inicio en un módulo permitido
+          if (parsedUser.rol === "Recepcionista") {
+            setActiveModule("pasajes");
+          }
         }
       }
     } catch {
@@ -48,6 +64,13 @@ export default function App() {
       nombreCompleto: userSession.nombreCompleto,
       rol: userSession.rol,
     });
+
+    // Redirigir según el rol recién autenticado
+    if (userSession.rol === "Recepcionista") {
+      setActiveModule("pasajes");
+    } else {
+      setActiveModule("inicio");
+    }
   };
 
   const handleLogout = () => {
@@ -73,6 +96,7 @@ export default function App() {
       "/clientes": "clientes",
       "/comprobantes": "comprobantes",
       "/nomina": "nomina",
+      "/usuarios": "usuarios",
       "/tesoreria": "tesoreria",
       "/liquidaciones": "liquidaciones",
       "/egresos": "egresos",
@@ -81,7 +105,13 @@ export default function App() {
       "/configuracion": "configuracion",
     };
 
-    const targetModule = routeToModule[href] || "inicio";
+    let targetModule = routeToModule[href] || "inicio";
+
+    // Validar permisos si el usuario activo es Recepcionista
+    if (session?.rol === "Recepcionista" && !MODULOS_RECEPCIONISTA.includes(targetModule)) {
+      targetModule = "pasajes";
+    }
+
     setActiveModule(targetModule);
   };
 
@@ -99,6 +129,11 @@ export default function App() {
 
   // Renderizado dinámico del contenido según la ruta seleccionada
   const renderModuleContent = () => {
+    // Protección adicional en render para Recepcionista
+    if (session.rol === "Recepcionista" && !MODULOS_RECEPCIONISTA.includes(activeModule)) {
+      return <PasajesPage />;
+    }
+
     switch (activeModule) {
       case "flota":
         return (
@@ -159,18 +194,20 @@ export default function App() {
       case "nomina":
         return <NominaPage />;
 
+      case "usuarios":
+        return <UsuariosPage />;
+
       case "clientes":
         return <ClientesPage />;
 
       case "viajes":
         return <ViajesPage />;
 
-      case "pasajes": // <--- 2. AGREGAR LA RUTA PARA PASAJES
+      case "pasajes":
         return <PasajesPage />;
 
       case "inicio":
       default:
-        // Carga la vista principal del Dashboard (Hero Banner + Cards + Gráfico)
         return null;
     }
   };
