@@ -9,12 +9,11 @@ import {
   ShieldCheck,
   Building2,
   Armchair,
-  Route as RouteIcon,
   ChevronRight,
 } from "lucide-react";
 import { useViajes } from "../hooks/useViajes";
 import { ProgramarSalidaModal } from "../components/viajes/ProgramarSalidaModal";
-import type { Viaje, EstadoViaje } from "../types/viaje";
+import type { EstadoViaje } from "../types/viaje";
 
 function getStoredProfile() {
   try {
