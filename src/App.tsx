@@ -10,6 +10,9 @@ import NominaPage from "./pages/NominaPage";
 import ClientesPage from "./pages/ClientesPage";
 import ViajesPage from "./pages/ViajesPage";
 import PasajesPage from "./pages/PasajesPage";
+import EncomiendasPage from "./pages/EncomiendasPage";
+import { ComprobantesPage } from "./pages/ComprobantesPage";
+import { TesoreriaPage } from "./pages/TesoreriaPage"; // 1. Importación agregada
 import UsuariosPage from "./pages/UsuariosPage";
 import axiosClient from "./api/axiosClient";
 
@@ -19,6 +22,8 @@ const MODULOS_RECEPCIONISTA: ModuleId[] = [
   "pasajes",
   "encomiendas",
   "clientes",
+  "comprobantes",
+  "tesoreria", // 2. Opcional: Agregar si el Recepcionista tiene acceso a Tesorería
   "reportes",
   "predicciones",
 ];
@@ -205,6 +210,15 @@ export default function App() {
 
       case "pasajes":
         return <PasajesPage />;
+
+      case "encomiendas":
+        return <EncomiendasPage />;
+
+      case "comprobantes":
+        return <ComprobantesPage />;
+
+      case "tesoreria": // 3. Caso para renderizar la vista de Tesorería
+        return <TesoreriaPage />;
 
       case "inicio":
       default:
