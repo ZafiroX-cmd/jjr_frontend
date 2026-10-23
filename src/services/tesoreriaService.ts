@@ -1,5 +1,11 @@
 import api from '../api/axiosClient';
 
+export interface CuentaEmpresa {
+  cuentaId: string;
+  nombreCuenta: string;
+  tipoCuenta: string;
+}
+
 export interface RegistrarMovimientoPayload {
   cuentaEmpresaId: string;
   tipoMovimiento: 'INGRESO' | 'EGRESO';
@@ -29,6 +35,11 @@ export interface MovimientoFiltro {
 export const tesoreriaService = {
   getMovimientos: async (filtro?: MovimientoFiltro): Promise<MovimientoCaja[]> => {
     const response = await api.get<MovimientoCaja[]>('/tesoreria/movimientos', { params: filtro });
+    return response.data;
+  },
+
+  getCuentasEmpresa: async (): Promise<CuentaEmpresa[]> => {
+    const response = await api.get<CuentaEmpresa[]>('/tesoreria/cuentas');
     return response.data;
   },
 

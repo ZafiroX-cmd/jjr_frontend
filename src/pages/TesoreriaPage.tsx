@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { 
   tesoreriaService, 
   type MovimientoCaja, 
-  type RegistrarMovimientoPayload 
+  type RegistrarMovimientoPayload,
+  type CuentaEmpresa
 } from '../services/tesoreriaService';
 
 export const TesoreriaPage: React.FC = () => {
   const [movimientos, setMovimientos] = useState<MovimientoCaja[]>([]);
+  const [cuentas, setCuentas] = useState<CuentaEmpresa[]>([]);
   const [cargando, setCargando] = useState<boolean>(false);
   const [modalAbierto, setModalAbierto] = useState<boolean>(false);
 
@@ -15,9 +17,9 @@ export const TesoreriaPage: React.FC = () => {
   const [fechaInicio, setFechaInicio] = useState<string>('');
   const [fechaFin, setFechaFin] = useState<string>('');
 
-  // Formulario de Registro con tipado explícito
+  // Formulario de Registro
   const [nuevoMovimiento, setNuevoMovimiento] = useState<RegistrarMovimientoPayload>({
-    cuentaEmpresaId: '', // ID de la CuentaEmpresa seleccionada
+    cuentaEmpresaId: '',
     tipoMovimiento: 'INGRESO',
     concepto: '',
     monto: 0,
@@ -41,17 +43,39 @@ export const TesoreriaPage: React.FC = () => {
     }
   };
 
+  const cargarCuentas = async () => {
+    try {
+      const data = await tesoreriaService.getCuentasEmpresa();
+      setCuentas(data);
+      if (data.length > 0) {
+        setNuevoMovimiento(prev => ({ ...prev, cuentaEmpresaId: data[0].cuentaId }));
+      }
+    } catch (error) {
+      console.error('Error al cargar cuentas de empresa:', error);
+    }
+  };
+
   useEffect(() => {
     cargarMovimientos();
   }, [tipoFiltro, fechaInicio, fechaFin]);
 
+  useEffect(() => {
+    cargarCuentas();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!nuevoMovimiento.cuentaEmpresaId) {
+      alert('Debe seleccionar una cuenta o caja de la empresa.');
+      return;
+    }
+
     try {
       await tesoreriaService.registrarMovimiento(nuevoMovimiento);
       setModalAbierto(false);
       setNuevoMovimiento({
-        cuentaEmpresaId: '',
+        cuentaEmpresaId: cuentas[0]?.cuentaId || '',
         tipoMovimiento: 'INGRESO',
         concepto: '',
         monto: 0,
@@ -60,7 +84,7 @@ export const TesoreriaPage: React.FC = () => {
       });
       cargarMovimientos();
     } catch (error) {
-      alert('Error al registrar el movimiento. Revisa los datos.');
+      alert('Error al registrar el movimiento. Revisa los datos ingresados.');
     }
   };
 
@@ -81,7 +105,7 @@ export const TesoreriaPage: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Módulo de Tesorería</h1>
-          <p className="text-slate-500 text-sm">Control e historial de ingresos y egresos de caja</p>
+          <p className="text-slate-500 text-sm">Control e historial de ingresos y egresos de caja institucional</p>
         </div>
         <button
           onClick={() => setModalAbierto(true)}
@@ -208,18 +232,34 @@ export const TesoreriaPage: React.FC = () => {
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <h2 className="text-lg font-bold text-slate-800 mb-4">Registrar Nuevo Movimiento</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
+              
+              {/* 1. Selector de Caja/Cuenta */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">ID Cuenta Empresa</label>
-                <input
-                  type="text"
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Cuenta / Caja de Destino</label>
+                <select
                   required
-                  placeholder="Ej: Guid de la cuenta"
                   value={nuevoMovimiento.cuentaEmpresaId}
                   onChange={(e) => setNuevoMovimiento({...nuevoMovimiento, cuentaEmpresaId: e.target.value})}
                   className="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:border-blue-500"
-                />
+                >
+                  <option value="">-- Seleccione una cuenta o caja --</option>
+                  {cuentas.map((c) => (
+                    <option key={c.cuentaId} value={c.cuentaId}>
+                      {c.nombreCuenta} ({c.tipoCuenta})
+                    </option>
+                  ))}
+                  {/* Cajas por defecto si la lista viene vacía */}
+                  {cuentas.length === 0 && (
+                    <>
+                      <option value="caja-chica-trujillo">Caja Chica - Agencia Trujillo</option>
+                      <option value="caja-chica-chillia">Caja Chica - Agencia Chillia</option>
+                      <option value="cuenta-bbva">Cuenta Corriente BBVA</option>
+                    </>
+                  )}
+                </select>
               </div>
 
+              {/* 2. Tipo de Movimiento */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Tipo de Movimiento</label>
                 <select
@@ -235,18 +275,35 @@ export const TesoreriaPage: React.FC = () => {
                 </select>
               </div>
 
+              {/* 3. Medio de Pago */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Medio de Pago</label>
+                <select
+                  value={nuevoMovimiento.medioPago}
+                  onChange={(e) => setNuevoMovimiento({...nuevoMovimiento, medioPago: e.target.value})}
+                  className="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:border-blue-500"
+                >
+                  <option value="EFECTIVO">EFECTIVO</option>
+                  <option value="TRANSFERENCIA">TRANSFERENCIA BANCARIA</option>
+                  <option value="YAPE">YAPE</option>
+                  <option value="PLIN">PLIN</option>
+                </select>
+              </div>
+
+              {/* 4. Concepto / Descripción */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Concepto / Descripción</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ej: Pago de peaje, Cobro encomienda..."
+                  placeholder="Ej: Fondeo de caja chica, Pago de alquiler, Planilla de personal..."
                   value={nuevoMovimiento.concepto}
                   onChange={(e) => setNuevoMovimiento({...nuevoMovimiento, concepto: e.target.value})}
                   className="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:border-blue-500"
                 />
               </div>
 
+              {/* 5. Monto */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Monto (S/)</label>
                 <input
@@ -254,12 +311,13 @@ export const TesoreriaPage: React.FC = () => {
                   step="0.01"
                   required
                   min="0.1"
-                  value={nuevoMovimiento.monto}
+                  value={nuevoMovimiento.monto || ''}
                   onChange={(e) => setNuevoMovimiento({...nuevoMovimiento, monto: parseFloat(e.target.value) || 0})}
                   className="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:border-blue-500"
                 />
               </div>
 
+              {/* Botones de acción */}
               <div className="flex justify-end gap-2 mt-6">
                 <button
                   type="button"

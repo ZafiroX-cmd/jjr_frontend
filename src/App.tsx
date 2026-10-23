@@ -12,7 +12,8 @@ import ViajesPage from "./pages/ViajesPage";
 import PasajesPage from "./pages/PasajesPage";
 import EncomiendasPage from "./pages/EncomiendasPage";
 import { ComprobantesPage } from "./pages/ComprobantesPage";
-import { TesoreriaPage } from "./pages/TesoreriaPage"; // 1. Importación agregada
+import { TesoreriaPage } from "./pages/TesoreriaPage";
+import { EgresosOperativosPage } from "./pages/EgresosOperativosPage"; // 1. Importación agregada
 import UsuariosPage from "./pages/UsuariosPage";
 import axiosClient from "./api/axiosClient";
 
@@ -23,7 +24,8 @@ const MODULOS_RECEPCIONISTA: ModuleId[] = [
   "encomiendas",
   "clientes",
   "comprobantes",
-  "tesoreria", // 2. Opcional: Agregar si el Recepcionista tiene acceso a Tesorería
+  "tesoreria",
+  "egresos", // 2. Agregado si el Recepcionista puede registrar egresos directos
   "reportes",
   "predicciones",
 ];
@@ -217,8 +219,11 @@ export default function App() {
       case "comprobantes":
         return <ComprobantesPage />;
 
-      case "tesoreria": // 3. Caso para renderizar la vista de Tesorería
+      case "tesoreria":
         return <TesoreriaPage />;
+
+      case "egresos": // 3. Renderizado de la vista de Egresos Operativos
+        return <EgresosOperativosPage />;
 
       case "inicio":
       default:
