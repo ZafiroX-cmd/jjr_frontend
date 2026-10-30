@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { LoaderCircle, Check, Route as RouteIcon, Building2, MapPin } from "lucide-react";
+import { LoaderCircle, Check, Route as RouteIcon, Building2, MapPin, X } from "lucide-react";
 import type { ProgramarViajeDto, RecursosViaje, Ruta } from "../../types/viaje";
 
 interface Props {
@@ -138,6 +138,9 @@ export function ProgramarSalidaModal({
     String(oficinaDefaultId || recursos.oficinas[0]?.oficinaId || "1")
   );
   const [routeId, setRouteId] = useState<string>("");
+  const [vehiculoId, setVehiculoId] = useState<string>("");
+  const [conductorId, setConductorId] = useState<string>("");
+  const [fechaSalida, setFechaSalida] = useState<string>("");
   const [price, setPrice] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -154,23 +157,26 @@ export function ProgramarSalidaModal({
 
   const selectedRoute = recursos.rutas.find((r) => r.rutaId === Number(routeId));
 
+  // 🚀 Al cambiar la oficina de origen, reiniciar selecciones
   const handleOrigenChange = (idStr: string) => {
+    const numId = Number(idStr);
     setOrigenId(idStr);
     setRouteId("");
     setPrice("");
-    if (onCambiarOrigen) onCambiarOrigen(Number(idStr));
+    setVehiculoId("");
+    setConductorId("");
+    setErrorMsg("");
+
+    if (onCambiarOrigen && numId > 0) {
+      onCambiarOrigen(numId);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMsg("");
 
-    const form = new FormData(e.currentTarget);
-    const fecha = String(form.get("fechaSalida") ?? "");
-    const vehiculoId = String(form.get("vehiculoId") ?? "");
-    const conductorId = String(form.get("conductorId") ?? "");
-
-    if (!routeId || !origenId || !vehiculoId || !conductorId || !price) {
+    if (!routeId || !origenId || !vehiculoId || !conductorId || !fechaSalida || !price) {
       setErrorMsg("Completa todos los campos obligatorios.");
       return;
     }
@@ -180,7 +186,7 @@ export function ProgramarSalidaModal({
       await onSubmit({
         rutaId: Number(routeId),
         oficinaOrigenId: Number(origenId),
-        fechaSalida: new Date(`${fecha}:00-05:00`).toISOString(),
+        fechaSalida: new Date(`${fechaSalida}:00-05:00`).toISOString(),
         vehiculoId,
         conductorId,
         precioPasaje: Number(price),
@@ -194,103 +200,180 @@ export function ProgramarSalidaModal({
   };
 
   return (
-    <dialog open className="fixed inset-0 z-50 m-auto max-h-[90dvh] w-[calc(100%_-_32px)] max-w-xl overflow-y-auto rounded-3xl border-0 bg-white p-6 text-[#062443] shadow-2xl sm:p-8">
-      <div className="mb-6 flex items-start justify-between">
-        <h2 className="text-xl font-bold">Programar Salida</h2>
-        <button type="button" onClick={onClose} className="rounded-lg p-2 hover:bg-slate-100">✕</button>
-      </div>
-
-      {errorMsg && <p className="mb-4 rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-700">{errorMsg}</p>}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="mb-2 block text-xs font-semibold">Oficina de origen *</label>
-          <select
-            value={origenId}
-            disabled={!esGerente}
-            onChange={(e) => handleOrigenChange(e.target.value)}
-            className={inputStyle}
-          >
-            {recursos.oficinas.map((o) => (
-              <option key={o.oficinaId} value={o.oficinaId}>{o.nombre}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-semibold">Ruta *</label>
-          <select
-            required
-            value={routeId}
-            onChange={(e) => {
-              const idStr = e.target.value;
-              setRouteId(idStr);
-              const r = rutasDisponibles.find((item) => item.rutaId === Number(idStr));
-              if (r) setPrice(r.precioSugerido.toFixed(2));
-            }}
-            className={inputStyle}
-          >
-            <option value="" disabled>Selecciona una ruta</option>
-            {rutasDisponibles.map((r) => (
-              <option key={r.rutaId} value={r.rutaId}>{r.nombre}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-semibold">Fecha y hora · Lima *</label>
-          <input type="datetime-local" name="fechaSalida" required className={inputStyle} />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div className="relative max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-6 text-[#062443] shadow-2xl sm:p-8">
+        <div className="mb-6 flex items-start justify-between border-b border-slate-100 pb-4">
           <div>
-            <label className="mb-2 block text-xs font-semibold">Camioneta *</label>
-            <select name="vehiculoId" required defaultValue="" className={inputStyle}>
-              <option value="" disabled>Selecciona camioneta</option>
-              {recursos.vehiculos.map((v) => (
-                <option key={v.vehiculoId} value={v.vehiculoId}>{v.placa} · {v.marca}</option>
-              ))}
-            </select>
+            <h2 className="text-xl font-bold">Programar Salida</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Asignación de unidad y conductor disponible</p>
           </div>
-          <div>
-            <label className="mb-2 block text-xs font-semibold">Conductor *</label>
-            <select name="conductorId" required defaultValue="" className={inputStyle}>
-              <option value="" disabled>Selecciona conductor</option>
-              {recursos.conductores.map((c) => (
-                <option key={c.conductorId} value={c.conductorId}>{c.nombre}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-semibold">Precio del pasaje (S/) *</label>
-          <input type="number" step="0.01" min="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required className={inputStyle} />
-        </div>
-
-        <AnimatePresence mode="wait">
-          {selectedRoute && (
-            <motion.div
-              key={selectedRoute.rutaId}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="mt-5"
-            >
-              <Itinerary ruta={selectedRoute} oficinas={recursos.oficinas} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-[#062443]">Volver</button>
-          <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-[#075BC6] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#062443]">
-            {saving ? <LoaderCircle size={15} className="animate-spin" /> : <Check size={15} />}
-            {saving ? "Guardando…" : "Programar salida"}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X size={20} />
           </button>
         </div>
-      </form>
-    </dialog>
+
+        {errorMsg && (
+          <p className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
+            {errorMsg}
+          </p>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Oficina de origen */}
+          <div>
+            <label className="mb-2 block text-xs font-semibold">Oficina de origen *</label>
+            <select
+              value={origenId}
+              disabled={!esGerente}
+              onChange={(e) => handleOrigenChange(e.target.value)}
+              className={inputStyle}
+            >
+              {recursos.oficinas.map((o) => (
+                <option key={o.oficinaId} value={o.oficinaId}>
+                  {o.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Ruta */}
+          <div>
+            <label className="mb-2 block text-xs font-semibold">Ruta *</label>
+            <select
+              required
+              value={routeId}
+              onChange={(e) => {
+                const idStr = e.target.value;
+                setRouteId(idStr);
+                const r = rutasDisponibles.find((item) => item.rutaId === Number(idStr));
+                if (r) setPrice(r.precioSugerido.toFixed(2));
+              }}
+              className={inputStyle}
+            >
+              <option value="" disabled>
+                Selecciona una ruta
+              </option>
+              {rutasDisponibles.map((r) => (
+                <option key={r.rutaId} value={r.rutaId}>
+                  {r.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Fecha y Hora */}
+          <div>
+            <label className="mb-2 block text-xs font-semibold">Fecha y hora · Lima *</label>
+            <input
+              type="datetime-local"
+              value={fechaSalida}
+              onChange={(e) => setFechaSalida(e.target.value)}
+              required
+              className={inputStyle}
+            />
+          </div>
+
+          {/* Camioneta y Conductor */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-xs font-semibold">Camioneta disponible *</label>
+              <select
+                value={vehiculoId}
+                onChange={(e) => setVehiculoId(e.target.value)}
+                disabled={recursos.vehiculos.length === 0}
+                required
+                className={inputStyle}
+              >
+                <option value="" disabled>
+                  {recursos.vehiculos.length === 0
+                    ? "Sin camionetas disponibles en esta oficina"
+                    : "Selecciona camioneta"}
+                </option>
+                {recursos.vehiculos.map((v) => (
+                  <option key={v.vehiculoId} value={v.vehiculoId}>
+                    {v.placa} · {v.marca}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-semibold">Conductor disponible *</label>
+              <select
+                value={conductorId}
+                onChange={(e) => setConductorId(e.target.value)}
+                disabled={recursos.conductores.length === 0}
+                required
+                className={inputStyle}
+              >
+                <option value="" disabled>
+                  {recursos.conductores.length === 0
+                    ? "Sin conductores disponibles"
+                    : "Selecciona conductor"}
+                </option>
+                {recursos.conductores.map((c) => (
+                  <option key={c.conductorId} value={c.conductorId}>
+                    {c.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Precio del pasaje */}
+          <div>
+            <label className="mb-2 block text-xs font-semibold">Precio del pasaje (S/) *</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              required
+              className={inputStyle}
+            />
+          </div>
+
+          {/* Itinerario dinámico de la ruta */}
+          <AnimatePresence mode="wait">
+            {selectedRoute && (
+              <motion.div
+                key={selectedRoute.rutaId}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mt-5"
+              >
+                <Itinerary ruta={selectedRoute} oficinas={recursos.oficinas} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Acciones */}
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-[#062443] transition hover:bg-slate-50"
+            >
+              Volver
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#075BC6] px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#062443] disabled:opacity-50"
+            >
+              {saving ? <LoaderCircle size={15} className="animate-spin" /> : <Check size={15} />}
+              {saving ? "Guardando…" : "Programar salida"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

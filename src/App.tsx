@@ -13,11 +13,14 @@ import PasajesPage from "./pages/PasajesPage";
 import EncomiendasPage from "./pages/EncomiendasPage";
 import { ComprobantesPage } from "./pages/ComprobantesPage";
 import { TesoreriaPage } from "./pages/TesoreriaPage";
-import { EgresosOperativosPage } from "./pages/EgresosOperativosPage"; // 1. Importación agregada
+import { EgresosOperativosPage } from "./pages/EgresosOperativosPage";
+import { LiquidacionesPage } from "./pages/LiquidacionesPage";
+import { PrediccionesPage } from "./pages/PrediccionesPage";
+import { ReportesPage } from "./pages/ReportesPage"; // 1. Importación agregada para Reportes
 import UsuariosPage from "./pages/UsuariosPage";
 import axiosClient from "./api/axiosClient";
 
-// Módulos permitidos estrictamente para el Recepcionista
+// Módulos permitidos strictly para el Recepcionista
 const MODULOS_RECEPCIONISTA: ModuleId[] = [
   "viajes",
   "pasajes",
@@ -25,7 +28,7 @@ const MODULOS_RECEPCIONISTA: ModuleId[] = [
   "clientes",
   "comprobantes",
   "tesoreria",
-  "egresos", // 2. Agregado si el Recepcionista puede registrar egresos directos
+  "egresos",
   "reportes",
   "predicciones",
 ];
@@ -222,8 +225,17 @@ export default function App() {
       case "tesoreria":
         return <TesoreriaPage />;
 
-      case "egresos": // 3. Renderizado de la vista de Egresos Operativos
+      case "egresos":
         return <EgresosOperativosPage />;
+
+      case "liquidaciones":
+        return <LiquidacionesPage />;
+
+      case "predicciones":
+        return <PrediccionesPage />;
+
+      case "reportes": // 2. Caso para renderizar el Módulo de Reportes Financieros
+        return <ReportesPage />;
 
       case "inicio":
       default:
